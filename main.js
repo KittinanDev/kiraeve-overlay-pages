@@ -170,13 +170,17 @@ class KiraeveOverlay {
 
         // Apply global font if specified
         if (settings.font) {
-            // Use the same font family as localhost (Komika Axis default)
-            const fontFamily = `'${settings.font}', 'Komika Axis', 'Impact', 'Arial Black', sans-serif`;
+            // Force normal style, no italic/oblique, match localhost
+            const fontFamily = `${settings.font}, Impact, 'Arial Black', 'Helvetica Inserat', sans-serif`;
             document.body.style.fontFamily = fontFamily;
+            document.body.style.fontStyle = 'normal';
+            document.body.style.fontWeight = '900';
             // Also apply to counters
             const counters = document.querySelectorAll('.counter');
             counters.forEach(c => {
-                if (!c.style.fontFamily) c.style.fontFamily = fontFamily;
+                c.style.fontFamily = fontFamily;
+                c.style.fontStyle = 'normal';
+                c.style.fontWeight = '900';
             });
         }
     }
@@ -234,11 +238,15 @@ class KiraeveOverlay {
                 counterEl.style.textShadow = 'none';
             }
 
-            // Apply player-specific font
+            // Apply player-specific font (force normal style)
             if (playerSettings.font) {
-                counterEl.style.fontFamily = `'${playerSettings.font}', 'Komika Axis', 'Impact', 'Arial Black', sans-serif`;
+                counterEl.style.fontFamily = `${playerSettings.font}, Impact, 'Arial Black', sans-serif`;
+                counterEl.style.fontStyle = 'normal';
+                counterEl.style.fontWeight = '900';
             } else if (globalSettings.font) {
-                counterEl.style.fontFamily = `'${globalSettings.font}', 'Komika Axis', 'Impact', 'Arial Black', sans-serif`;
+                counterEl.style.fontFamily = `${globalSettings.font}, Impact, 'Arial Black', sans-serif`;
+                counterEl.style.fontStyle = 'normal';
+                counterEl.style.fontWeight = '900';
             }
         }
     }

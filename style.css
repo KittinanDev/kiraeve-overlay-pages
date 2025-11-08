@@ -1,10 +1,9 @@
 /* Kiraeve Overlay - Static Styles */
 
-/* Fonts - Inline for all fonts used in localhost */
+/* Fonts - Using system fonts and verified CDN fonts only */
 @font-face {
     font-family: 'Komika Axis';
-    src: url('https://db.onlinewebfonts.com/t/1e45e6fc9c3d9d1e8e691c4d0c5e4f8b.woff2') format('woff2'),
-         url('https://db.onlinewebfonts.com/t/1e45e6fc9c3d9d1e8e691c4d0c5e4f8b.ttf') format('truetype');
+    src: url('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/impact/Impact-Regular.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
     font-display: swap;
@@ -18,30 +17,6 @@
     font-display: swap;
 }
 
-@font-face {
-    font-family: 'Impact';
-    src: local('Impact'), local('Impact-Regular');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'Comic Sans MS';
-    src: local('Comic Sans MS'), local('ComicSansMS');
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: 'Arial Black';
-    src: local('Arial Black'), local('ArialBlack');
-    font-weight: 900;
-    font-style: normal;
-    font-display: swap;
-}
-
 * {
     margin: 0;
     padding: 0;
@@ -51,7 +26,10 @@
 body {
     background: transparent;
     overflow: hidden;
-    font-family: 'Komika Axis', 'MrBeast', 'Impact', 'Arial Black', sans-serif;
+    /* Use system Impact font as default, matching localhost behavior */
+    font-family: Impact, 'Arial Black', 'Helvetica Inserat', 'Bitstream Vera Sans Bold', 'Franklin Gothic Heavy', sans-serif;
+    font-style: normal;
+    font-weight: normal;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -87,7 +65,8 @@ body {
 
 .counter {
     font-size: 120px;
-    font-weight: bold;
+    font-weight: 900;
+    font-style: normal;
     color: #FFFFFF;
     text-shadow: 
         -4px -4px 0 #000000,  
@@ -96,6 +75,7 @@ body {
         4px 4px 0 #000000;
     line-height: 1;
     white-space: nowrap;
+    letter-spacing: -0.02em;
 }
 
 /* Responsive */
