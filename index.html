@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiraeve Overlay - Real-time Win Counter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="overlay-container" id="overlayContainer">
+        <!-- Player 1 -->
+        <div class="player-section" id="p1Section">
+            <div class="player-name" id="p1Name">P1</div>
+            <div class="counter" id="p1Counter">0/2</div>
+        </div>
+        
+        <!-- Player 2 (hidden in single mode) -->
+        <div class="player-section" id="p2Section" style="display: none;">
+            <div class="player-name" id="p2Name">P2</div>
+            <div class="counter" id="p2Counter">0/2</div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>

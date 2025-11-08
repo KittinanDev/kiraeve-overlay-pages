@@ -1,0 +1,92 @@
+/* Kiraeve Overlay - Static Styles */
+
+/* Fonts */
+@import url('https://fonts.cdnfonts.com/css/mrbeast');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;900&display=swap');
+
+@font-face {
+    font-family: 'Komika';
+    src: url('https://db.onlinewebfonts.com/t/1e45e6fc9c3d9d1e8e691c4d0c5e4f8b.woff2') format('woff2');
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: transparent;
+    overflow: hidden;
+    font-family: 'MrBeast', 'Inter', Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.overlay-container {
+    display: flex;
+    gap: 60px;
+    align-items: center;
+    justify-content: center;
+}
+
+.player-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.player-name {
+    font-size: 36px;
+    font-weight: bold;
+    color: #FFFFFF;
+    text-shadow: 
+        -4px -4px 0 #000000,  
+        4px -4px 0 #000000,
+        -4px 4px 0 #000000,
+        4px 4px 0 #000000;
+    line-height: 1;
+}
+
+.counter {
+    font-size: 120px;
+    font-weight: bold;
+    color: #FFFFFF;
+    text-shadow: 
+        -4px -4px 0 #000000,  
+        4px -4px 0 #000000,
+        -4px 4px 0 #000000,
+        4px 4px 0 #000000;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .overlay-container {
+        gap: 30px;
+    }
+    
+    .player-name {
+        font-size: 24px;
+    }
+    
+    .counter {
+        font-size: 80px;
+    }
+}
+
+/* Animation for updates */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.counter.updated {
+    animation: pulse 0.3s ease-in-out;
+}
