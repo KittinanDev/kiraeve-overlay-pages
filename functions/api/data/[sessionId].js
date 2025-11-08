@@ -15,7 +15,7 @@ export async function onRequestGet(context) {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+        'Cache-Control': 'public, max-age=0, must-revalidate' // Allow caching but revalidate (edge cache handles this)
     };
 
     if (!sessionId) {

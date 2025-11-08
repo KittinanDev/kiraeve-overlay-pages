@@ -72,6 +72,7 @@ class KiraeveOverlay {
         this.updateDisplay();
         
         // Auto-refresh every 200ms (same as localhost for instant updates)
+        // Note: KV GET is cached at edge, so this doesn't hit KV every time
         setInterval(() => {
             this.fetchData();
         }, 200);
