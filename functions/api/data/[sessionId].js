@@ -15,7 +15,7 @@ export async function onRequestGet(context) {
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=0, must-revalidate' // Allow caching but revalidate (edge cache handles this)
+        'Cache-Control': 'public, max-age=0, must-revalidate'
     };
 
     if (!sessionId) {
@@ -26,34 +26,50 @@ export async function onRequestGet(context) {
     }
 
     try {
-        // Get data from KV
-        const dataStr = await env.OVERLAY_DATA.get(`session:${sessionId}`);
-        
-        if (!dataStr) {
-            // Return default data if not found
-            const defaultData = {
-                mode: 'single',
-                maxWins: 2,
-                players: {
-                    p1: { wins: 0, name: 'P1', showName: true },
-                    p2: { wins: 0, name: 'P2', showName: true }
-                },
-                settings: {
-                    font: 'MrBeast',
-                    fontSize: 120,
-                    fontColor: '#FFFFFF',
-                    borderEnabled: true,
-                    borderColor: '#000000',
-                    borderSize: 4
-                },
-                playerSettings: { p1: {}, p2: {} }
-            };
-            
-            return new Response(JSON.stringify(defaultData), { headers: corsHeaders });
+        // Try memory first (instant, like localhost)
+        if (env.sessionStore) {
+            const cached = env.sessionStore.get(`session:${sessionId}`);
+            if (cached && cached.expires > Date.now()) {
+                return new Response(JSON.stringify(cached.data), { headers: corsHeaders });
+            }
         }
-
-        const data = JSON.parse(dataStr);
-        return new Response(JSON.stringify(data), { headers: corsHeaders });
+        
+        // Fallback to KV if not in memory (or expired)
+        if (env.OVERLAY_DATA) {
+            const dataStr = await env.OVERLAY_DATA.get(`session:${sessionId}`);
+            if (dataStr) {
+                const data = JSON.parse(dataStr);
+                // Store in memory for next request
+                if (env.sessionStore) {
+                    env.sessionStore.set(`session:${sessionId}`, {
+                        data,
+                        expires: Date.now() + 86400000
+                    });
+                }
+                return new Response(JSON.stringify(data), { headers: corsHeaders });
+            }
+        }
+        
+        // Return default data if not found
+        const defaultData = {
+            mode: 'single',
+            maxWins: 2,
+            players: {
+                p1: { wins: 0, name: 'P1', showName: true },
+                p2: { wins: 0, name: 'P2', showName: true }
+            },
+            settings: {
+                font: 'Komika Axis',
+                fontSize: 120,
+                fontColor: '#FFFFFF',
+                borderEnabled: true,
+                borderColor: '#000000',
+                borderSize: 4
+            },
+            playerSettings: { p1: {}, p2: {} }
+        };
+        
+        return new Response(JSON.stringify(defaultData), { headers: corsHeaders });
         
     } catch (error) {
         return new Response(JSON.stringify({ error: error.message }), {

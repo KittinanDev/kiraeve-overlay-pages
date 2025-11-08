@@ -27,12 +27,25 @@ export async function onRequestPost(context) {
     try {
         const data = await request.json();
         
-        // Store data in KV with 24 hour expiration
-        await env.OVERLAY_DATA.put(
-            `session:${sessionId}`,
-            JSON.stringify(data),
-            { expirationTtl: 86400 } // 24 hours
-        );
+        // Store in memory (instant, no rate limits) - primary
+        if (env.sessionStore) {
+            env.sessionStore.set(`session:${sessionId}`, {
+                data,
+                expires: Date.now() + 86400000 // 24 hours
+            });
+        }
+        
+        // Also store in KV as backup (async, non-blocking)
+        if (env.OVERLAY_DATA) {
+            // Fire and forget - don't await to avoid rate limits blocking the response
+            context.waitUntil(
+                env.OVERLAY_DATA.put(
+                    `session:${sessionId}`,
+                    JSON.stringify(data),
+                    { expirationTtl: 86400 }
+                ).catch(() => {}) // Ignore KV errors (429, etc)
+            );
+        }
 
         return new Response(JSON.stringify({ success: true }), {
             headers: corsHeaders
