@@ -71,10 +71,10 @@ class KiraeveOverlay {
         await this.fetchData();
         this.updateDisplay();
         
-        // Auto-refresh every 2 seconds
+        // Auto-refresh every 200ms (same as localhost for instant updates)
         setInterval(() => {
             this.fetchData();
-        }, 2000);
+        }, 200);
     }
 
     /**
@@ -167,7 +167,14 @@ class KiraeveOverlay {
 
         // Apply global font if specified
         if (settings.font) {
-            document.body.style.fontFamily = `'${settings.font}', Arial, sans-serif`;
+            // Use the same font family as localhost (Komika Axis default)
+            const fontFamily = `'${settings.font}', 'Komika Axis', 'Impact', 'Arial Black', sans-serif`;
+            document.body.style.fontFamily = fontFamily;
+            // Also apply to counters
+            const counters = document.querySelectorAll('.counter');
+            counters.forEach(c => {
+                if (!c.style.fontFamily) c.style.fontFamily = fontFamily;
+            });
         }
     }
 
@@ -224,7 +231,9 @@ class KiraeveOverlay {
 
             // Apply player-specific font
             if (playerSettings.font) {
-                counterEl.style.fontFamily = `'${playerSettings.font}', Arial, sans-serif`;
+                counterEl.style.fontFamily = `'${playerSettings.font}', 'Komika Axis', 'Impact', 'Arial Black', sans-serif`;
+            } else if (globalSettings.font) {
+                counterEl.style.fontFamily = `'${globalSettings.font}', 'Komika Axis', 'Impact', 'Arial Black', sans-serif`;
             }
         }
     }
