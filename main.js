@@ -9,6 +9,8 @@ class KiraeveOverlay {
         this.playerMode = this.getPlayerModeFromUrl(); // 'p1', 'p2', or null for combined
         this.apiUrl = `https://kiraeve-overlay.com/api/data/${this.sessionId}`;
         this.data = null;
+        this.animatingCounters = {}; // Track which counters are animating
+        this.currentValues = { p1: 0, p2: 0 }; // Track current displayed values
         this.init();
     }
 
@@ -192,19 +194,21 @@ class KiraeveOverlay {
             nameEl.style.display = data.showName !== false ? 'block' : 'none';
         }
 
-        // Update counter
+        // Update counter with smooth animation
         if (counterEl) {
-            const oldValue = counterEl.textContent;
-            const newValue = `${data.wins}/${maxWins}`;
+            const targetValue = data.wins || 0;
             
-            counterEl.textContent = newValue;
-
-            // Pulse animation on change
-            if (oldValue !== newValue) {
-                counterEl.classList.add('updated');
-                setTimeout(() => {
-                    counterEl.classList.remove('updated');
-                }, 300);
+            // Animate counter if value changed
+            if (this.currentValues[player] !== targetValue) {
+                this.animateCounter(player, this.currentValues[player], targetValue, maxWins, counterEl);
+                this.currentValues[player] = targetValue;
+            } else {
+                // Just update max wins if it changed
+                const currentText = counterEl.textContent;
+                const expectedText = `${targetValue}/${maxWins}`;
+                if (currentText !== expectedText) {
+                    counterEl.textContent = expectedText;
+                }
             }
 
             // Apply player-specific settings
@@ -237,6 +241,43 @@ class KiraeveOverlay {
                 counterEl.style.fontFamily = `'${globalSettings.font}', 'Komika Axis', 'Impact', 'Arial Black', sans-serif`;
             }
         }
+    }
+
+    /**
+     * Animate counter from old value to new value
+     * Counts up/down one by one for smooth effect
+     */
+    animateCounter(player, fromValue, toValue, maxWins, counterEl) {
+        // Cancel any existing animation
+        if (this.animatingCounters[player]) {
+            clearInterval(this.animatingCounters[player]);
+        }
+
+        // If same value, nothing to do
+        if (fromValue === toValue) return;
+
+        const direction = toValue > fromValue ? 1 : -1;
+        const steps = Math.abs(toValue - fromValue);
+        const duration = Math.min(steps * 150, 1000); // 150ms per step, max 1 second
+        const stepDuration = duration / steps;
+
+        let current = fromValue;
+
+        // Pulse animation on start
+        counterEl.classList.add('updated');
+        setTimeout(() => {
+            counterEl.classList.remove('updated');
+        }, 300);
+
+        this.animatingCounters[player] = setInterval(() => {
+            current += direction;
+            counterEl.textContent = `${current}/${maxWins}`;
+
+            if (current === toValue) {
+                clearInterval(this.animatingCounters[player]);
+                this.animatingCounters[player] = null;
+            }
+        }, stepDuration);
     }
 }
 
