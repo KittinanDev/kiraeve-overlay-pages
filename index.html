@@ -126,8 +126,6 @@
                 this.animatingCounters = {}; // Track animating counters
                 this.currentValues = { p1: 0, p2: 0 }; // Track current displayed values
                 
-                console.log('🎮 Starting Kiraeve Win Counter Overlay...');
-                
                 // connectToServer จะถูกเรียกจาก DOMContentLoaded
             }
 
@@ -152,8 +150,6 @@
             }
 
             updateDisplay(data) {
-                console.log('🔄 updateDisplay called with:', data);
-                
                 // normalize
                 const mode = data.mode || 'single';
                 const maxWins = data.maxWins ?? 2;
@@ -161,13 +157,10 @@
                 const p2wins = data.players?.p2?.wins ?? 0;
                 const settings = data.settings || {};
 
-                console.log('🎯 Parsed values:', { mode, maxWins, p1wins, p2wins });
-
                 const needRerender = (mode !== this.current.mode) || (maxWins !== this.current.maxWins);
                 this.current = { mode, maxWins, players: { p1: { wins: p1wins }, p2: { wins: p2wins } }, settings };
 
                 if (needRerender || !this.root.firstChild) {
-                    console.log('🏗️ Re-rendering overlay');
                     this.render(mode);
                 }
 
@@ -245,15 +238,13 @@
                 };
 
                 const container = document.createElement('div');
-                const filter = window.PLAYER_FILTER || null;
-                // Distinct layout: single-player route gets simplified styling (no gap, fills center)
-                if (filter) {
-                    container.style.cssText = 'display:flex; align-items:center; justify-content:center; width:100%; height:100%;';
-                } else {
-                    container.style.cssText = 'display:flex; gap:32px; align-items:center; justify-content:center; width:100%;';
-                }
+                const filter = this.playerFilter || window.PLAYER_FILTER || null;
+                
+                // สำหรับ overlay แยก ให้ใช้ layout เหมือนตัวรวมเสมอ (center, full screen)
+                container.style.cssText = 'display:flex; align-items:center; justify-content:center; width:100%; height:100%;';
+                
                 if (!filter || filter === 'p1') container.append(makeCounter('p1'));
-                if ((!filter && mode === 'dual') || (filter === 'p2')) {
+                if ((!filter && mode === 'dual') || filter === 'p2') {
                     if (mode === 'dual' || filter === 'p2') container.append(makeCounter('p2'));
                 }
                 this.root.append(container);
@@ -266,29 +257,18 @@
             }
 
             updatePlayer(id, wins, maxWins, settings, playerSettings = {}) {
-                console.log(`🎮 updatePlayer(${id}, wins=${wins}, maxWins=${maxWins})`);
-                
                 const numEl = document.getElementById(`${id}-winNumber`);
                 const maxEl = document.getElementById(`${id}-maxNumber`);
-                
-                console.log(`📍 Elements found: numEl=${!!numEl}, maxEl=${!!maxEl}`);
-                
-                if (!numEl || !maxEl) {
-                    console.log(`❌ Missing elements for ${id}`);
-                    return;
-                }
+                if (!numEl || !maxEl) return;
 
                 const previous = parseInt(numEl.textContent || '0', 10) || 0;
-                console.log(`🔄 ${id}: ${previous} → ${wins}`);
                 
                 // Animate counter if value changed
                 if (this.currentValues[id] !== wins) {
-                    console.log(`✨ Animating ${id} counter`);
                     this.animateCounter(id, this.currentValues[id], wins, maxWins, numEl, maxEl);
                     this.currentValues[id] = wins;
                 } else {
                     // Just update max wins if it changed
-                    console.log(`📊 Updating max wins for ${id}: ${maxWins}`);
                     maxEl.textContent = String(maxWins);
                 }
 
@@ -298,13 +278,6 @@
                 const playerFont = overrideFont || settings.font || 'Komika Axis';
                 const playerFontSize = playerSettings.fontSize || settings.fontSize || 80;
                 const playerFontColor = playerSettings.fontColor || settings.fontColor || '#ffffff';
-
-                console.log(`🎨 [${id}] Font: "${playerFont}" (${overrideFont ? 'OVERRIDE' : 'combined'})`, {
-                    'playerSettings.font': playerSettings.font,
-                    'settings.font': settings.font,
-                    'final playerFont': playerFont,
-                    'fontSize': playerFontSize
-                });
 
                 // Find the parent counter container
                 const counterBox = numEl.closest('.win-counter');
@@ -484,24 +457,19 @@
                     }
                 });
                 
-                console.log('🎨 Font settings applied:', settings, playerSettings);
             }
 
             async connectToServer() {
-                console.log('🌐 Connecting to server...');
-                
                 // Get initial data
                 try {
                     const response = await fetch('/api/data');
                     const result = await response.json();
-                    console.log('📦 Initial server response:', result);
                     
                     // Extract data from API response structure
                     const data = result.success ? result.data : result;
-                    console.log('📦 Extracted data:', data);
                     this.updateDisplay(data);
                 } catch (error) {
-                    console.log('❌ Server not available:', error);
+                    // Silent fail
                 }
                 
                 // Start real-time polling
@@ -531,7 +499,7 @@
                         this.createBeep(audioCtx, 220, 0.2);
                     }
                 } catch (error) {
-                    console.log('Sound not available');
+                    // Sound not available
                 }
             }
 
@@ -555,33 +523,8 @@
 
         // Initialize overlay
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 DOM Content Loaded - Initializing overlay...');
-            
-            // Create visible indicator
-            const indicator = document.createElement('div');
-            indicator.style.cssText = 'position: fixed; top: 10px; left: 10px; background: red; color: white; padding: 5px; z-index: 9999; font-size: 12px;';
-            indicator.textContent = 'OVERLAY LOADING...';
-            document.body.appendChild(indicator);
-            
             window.overlay = new WinCounterOverlay();
-            
-            // Update indicator
-            indicator.textContent = 'OVERLAY CREATED';
-            indicator.style.background = 'orange';
-            
-            // Start connection
             window.overlay.connectToServer();
-            
-            // Update indicator after a short delay
-            setTimeout(() => {
-                indicator.textContent = 'OVERLAY STARTED';
-                indicator.style.background = 'green';
-                
-                // Remove after 3 seconds
-                setTimeout(() => {
-                    indicator.remove();
-                }, 3000);
-            }, 1000);
         });
     </script>
 </body>
