@@ -123,14 +123,24 @@
                 this.current = { mode: 'single', maxWins: 2, players: { p1: {wins:0}, p2: {wins:0} }, settings: {} };
                 this.soundEnabled = true;
                 
-                // Detect player filter from URL path
+                // Detect player filter from URL path and query parameters
                 const path = location.pathname;
+                const urlParams = new URLSearchParams(location.search);
+                const playerParam = urlParams.get('player');
+                
                 let playerFilter = null;
-                if (path.includes('/p1')) {
+                
+                // Check query parameter first (e.g., ?player=p1 or ?player=p2)
+                if (playerParam === 'p1' || playerParam === 'p2') {
+                    playerFilter = playerParam;
+                }
+                // Fallback to path detection
+                else if (path.includes('/p1')) {
                     playerFilter = 'p1';
                 } else if (path.includes('/p2')) {
                     playerFilter = 'p2';
                 }
+                
                 this.playerFilter = window.PLAYER_FILTER || playerFilter;
                 
                 this.animatingCounters = {}; // Track animating counters
