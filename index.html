@@ -3,24 +3,537 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kiraeve Overlay - Real-time Win Counter</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Kiraeve Win Counter Overlay</title>
+    <style>
+        /* Font with multiple fallbacks for maximum compatibility */
+        @font-face {
+            font-family: 'Komika Axis';
+            src: local('Komika Axis'),
+                 url('fonts/KOMIKAX_.ttf') format('truetype'),
+                 url('https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/impact/Impact-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+        
+        /* Fonts are declared in fonts/overlay-fonts.css */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: transparent;
+            overflow: hidden;
+            font-family: 'Komika Axis', 'Impact', 'Arial Black', sans-serif;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .win-counter {
+            font-family: 'Komika Axis', 'Impact', 'Arial Black', sans-serif;
+            font-size: 80px; /* Match Combined default (was 180px) */
+            font-weight: bold;
+            text-align: center;
+            white-space: nowrap;
+            user-select: none;
+            position: relative;
+            text-shadow: 
+                -2px -2px 0 #000000,  
+                2px -2px 0 #000000,
+                -2px 2px 0 #000000,
+                2px 2px 0 #000000,
+                -3px 0 0 #000000,
+                3px 0 0 #000000,
+                0 -3px 0 #000000,
+                0 3px 0 #000000;
+        }
+
+        /* เลขหน้า */
+        .win-number {
+            display: inline;
+            transition: all 0.3s ease;
+        }
+
+        /* เลขหลังและ slash - ใช้สีจาก user settings */
+        .slash, .max-number {
+            display: inline;
+            transition: all 0.3s ease;
+            color: inherit; /* สืบทอดสีจาก parent หรือจะถูกกำหนดโดย JavaScript */
+        }
+
+        /* Animation classes */
+        .animate-bounce {
+            animation: bounce 0.6s ease-in-out;
+        }
+
+        .animate-positive {
+            animation: shakePositive 0.6s ease-in-out;
+        }
+
+        .animate-negative {
+            animation: shakeNegative 0.6s ease-in-out;
+        }
+
+        @keyframes bounce {
+            0% { transform: scale(1); }
+            20% { transform: scale(1.1) rotate(-2deg); }
+            40% { transform: scale(1.15) rotate(2deg); }
+            60% { transform: scale(1.1) rotate(-1deg); }
+            80% { transform: scale(1.05) rotate(1deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        @keyframes shakePositive {
+            0% { transform: scale(1) translateX(0); }
+            10% { transform: scale(1.2) translateX(-5px) rotate(-3deg); }
+            20% { transform: scale(1.3) translateX(5px) rotate(3deg); }
+            30% { transform: scale(1.25) translateX(-3px) rotate(-2deg); }
+            40% { transform: scale(1.2) translateX(3px) rotate(2deg); }
+            50% { transform: scale(1.15) translateX(-2px) rotate(-1deg); }
+            60% { transform: scale(1.1) translateX(2px) rotate(1deg); }
+            70% { transform: scale(1.05) translateX(-1px) rotate(-0.5deg); }
+            80% { transform: scale(1.02) translateX(1px) rotate(0.5deg); }
+            100% { transform: scale(1) translateX(0) rotate(0deg); }
+        }
+
+        @keyframes shakeNegative {
+            0% { transform: scale(1) translateY(0); }
+            10% { transform: scale(0.9) translateY(-3px) rotate(-5deg); }
+            20% { transform: scale(0.85) translateY(3px) rotate(5deg); }
+            30% { transform: scale(0.9) translateY(-2px) rotate(-3deg); }
+            40% { transform: scale(0.95) translateY(2px) rotate(3deg); }
+            50% { transform: scale(0.98) translateY(-1px) rotate(-1deg); }
+            60% { transform: scale(1) translateY(1px) rotate(1deg); }
+            70% { transform: scale(1.02) translateY(-0.5px) rotate(-0.5deg); }
+            80% { transform: scale(1.01) translateY(0.5px) rotate(0.5deg); }
+            100% { transform: scale(1) translateY(0) rotate(0deg); }
+        }
+    </style>
 </head>
 <body>
-    <div class="overlay-container" id="overlayContainer">
-        <!-- Player 1 -->
-        <div class="player-section" id="p1Section">
-            <div class="player-name" id="p1Name">P1</div>
-            <div class="counter" id="p1Counter">0/2</div>
-        </div>
-        
-        <!-- Player 2 (hidden in single mode) -->
-        <div class="player-section" id="p2Section" style="display: none;">
-            <div class="player-name" id="p2Name">P2</div>
-            <div class="counter" id="p2Counter">0/2</div>
-        </div>
-    </div>
+    <div id="overlayRoot"></div>
 
-    <script src="main.js"></script>
+    <script>
+        class WinCounterOverlay {
+            constructor() {
+                this.root = document.getElementById('overlayRoot');
+                this.current = { mode: 'single', maxWins: 2, players: { p1: {wins:0}, p2: {wins:0} }, settings: {} };
+                this.soundEnabled = true;
+                this.playerFilter = (window.PLAYER_FILTER || (location.pathname.includes('/overlay/p1') ? 'p1' : (location.pathname.includes('/overlay/p2') ? 'p2' : null)));
+                this.animatingCounters = {}; // Track animating counters
+                this.currentValues = { p1: 0, p2: 0 }; // Track current displayed values
+                
+                console.log('🎮 Starting Kiraeve Win Counter Overlay...');
+                
+                this.connectToServer();
+            }
+
+            setColor(el, colorCode) {
+                if (!el) return;
+                el.style.setProperty('color', colorCode, 'important');
+                el.style.cssText = `color: ${colorCode} !important; display: inline; transition: all 0.3s ease;`;
+                // Force reflow
+                el.offsetHeight; el.style.color = colorCode;
+                setTimeout(() => {
+                    el.style.setProperty('color', colorCode, 'important');
+                    el.style.color = colorCode;
+                }, 10);
+            }
+
+            triggerAnimation(el, animType) {
+                if (!el) return;
+                el.classList.remove('animate-bounce', 'animate-positive', 'animate-negative');
+                el.offsetHeight; // reflow
+                el.classList.add(animType);
+                setTimeout(() => { el.classList.remove(animType); }, 600);
+            }
+
+            updateDisplay(data) {
+                // normalize
+                const mode = data.mode || 'single';
+                const maxWins = data.maxWins ?? 2;
+                const p1wins = data.players?.p1?.wins ?? (data.currentWins ?? 0);
+                const p2wins = data.players?.p2?.wins ?? 0;
+                const settings = data.settings || {};
+
+                const needRerender = (mode !== this.current.mode) || (maxWins !== this.current.maxWins);
+                this.current = { mode, maxWins, players: { p1: { wins: p1wins }, p2: { wins: p2wins } }, settings };
+
+                if (needRerender || !this.root.firstChild) {
+                    this.render(mode);
+                }
+
+                // Update names/visibility
+                const p1NameEl = document.getElementById('p1-name');
+                const p2NameEl = document.getElementById('p2-name');
+                if (p1NameEl) {
+                    const name = data.players?.p1?.name ?? 'P1';
+                    const show = data.players?.p1?.showName !== false;
+                    p1NameEl.textContent = name;
+                    p1NameEl.style.display = show ? 'block' : 'none';
+                }
+                if (p2NameEl) {
+                    const name = data.players?.p2?.name ?? 'P2';
+                    const show = data.players?.p2?.showName !== false;
+                    p2NameEl.textContent = name;
+                    p2NameEl.style.display = show ? 'block' : 'none';
+                }
+
+                // Update values and colors (respect player filter)
+                const filter = this.playerFilter || window.PLAYER_FILTER || null;
+                const playerSettings = data.playerSettings || { p1: {}, p2: {} };
+                if (!filter || filter === 'p1') {
+                    this.updatePlayer('p1', p1wins, maxWins, settings, playerSettings.p1);
+                }
+                if ((!filter && mode === 'dual') || filter === 'p2') {
+                    this.updatePlayer('p2', p2wins, maxWins, settings, playerSettings.p2);
+                }
+
+                // Apply font/onetime styles
+                this.applyFontSettings(settings, playerSettings);
+            }
+
+            render(mode) {
+                this.root.innerHTML = '';
+                const makeCounter = (id) => {
+                    const wrap = document.createElement('div');
+                    wrap.className = 'win-counter';
+
+                    const name = document.createElement('div');
+                    name.className = 'player-name';
+                    name.id = `${id}-name`;
+                    name.style.cssText = 'font-size: 36px; margin-bottom: 8px; text-align: center; color: #ffffff;';
+                    name.textContent = id === 'p1' ? 'P1' : 'P2';
+
+                    const number = document.createElement('span');
+                    number.className = 'win-number';
+                    number.id = `${id}-winNumber`;
+                    number.textContent = '0';
+                    number.contentEditable = true; // manual input
+                    number.setAttribute('spellcheck', 'false');
+
+                    const slash = document.createElement('span');
+                    slash.className = 'slash';
+                    slash.textContent = '/';
+
+                    const max = document.createElement('span');
+                    max.className = 'max-number';
+                    max.id = `${id}-maxNumber`;
+                    max.textContent = String(this.current.maxWins || 2);
+
+                    // container
+                    const box = document.createElement('div');
+                    box.className = 'win-counter';
+                    box.append(number, slash, max);
+
+                    // wrap name + box
+                    wrap.append(name, box);
+
+                    // manual input handling
+                    number.addEventListener('keydown', (e) => this.handleManualKey(e, id));
+                    number.addEventListener('blur', () => this.commitManual(id));
+
+                    return wrap;
+                };
+
+                const container = document.createElement('div');
+                const filter = window.PLAYER_FILTER || null;
+                // Distinct layout: single-player route gets simplified styling (no gap, fills center)
+                if (filter) {
+                    container.style.cssText = 'display:flex; align-items:center; justify-content:center; width:100%; height:100%;';
+                } else {
+                    container.style.cssText = 'display:flex; gap:32px; align-items:center; justify-content:center; width:100%;';
+                }
+                if (!filter || filter === 'p1') container.append(makeCounter('p1'));
+                if ((!filter && mode === 'dual') || (filter === 'p2')) {
+                    if (mode === 'dual' || filter === 'p2') container.append(makeCounter('p2'));
+                }
+                this.root.append(container);
+            }
+
+            colorFor(value, settings) {
+                if (value > 0) return settings.positiveColor || 'rgb(0,255,0)';
+                if (value < 0) return settings.negativeColor || 'rgb(255,0,0)';
+                return settings.neutralColor || 'rgb(255,255,255)';
+            }
+
+            updatePlayer(id, wins, maxWins, settings, playerSettings = {}) {
+                const numEl = document.getElementById(`${id}-winNumber`);
+                const maxEl = document.getElementById(`${id}-maxNumber`);
+                if (!numEl || !maxEl) return;
+
+                const previous = parseInt(numEl.textContent || '0', 10) || 0;
+                
+                // Animate counter if value changed
+                if (this.currentValues[id] !== wins) {
+                    this.animateCounter(id, this.currentValues[id], wins, maxWins, numEl, maxEl);
+                    this.currentValues[id] = wins;
+                } else {
+                    // Just update max wins if it changed
+                    maxEl.textContent = String(maxWins);
+                }
+
+                // Apply player-specific font, fontSize, color (with fallback to combined settings)
+                // If player override is an empty string treat as null
+                const overrideFont = (playerSettings.font === '' ? null : playerSettings.font);
+                const playerFont = overrideFont || settings.font || 'Komika Axis';
+                const playerFontSize = playerSettings.fontSize || settings.fontSize || 80;
+                const playerFontColor = playerSettings.fontColor || settings.fontColor || '#ffffff';
+
+                console.log(`🎨 [${id}] Font: "${playerFont}" (${overrideFont ? 'OVERRIDE' : 'combined'})`, {
+                    'playerSettings.font': playerSettings.font,
+                    'settings.font': settings.font,
+                    'final playerFont': playerFont,
+                    'fontSize': playerFontSize
+                });
+
+                // Find the parent counter container
+                const counterBox = numEl.closest('.win-counter');
+                // Simple concatenation like the original Combined overlay (no quotes needed for CSS)
+                const fontStack = playerFont + ', Impact, Arial Black, Arial, sans-serif';
+                if (counterBox) {
+                    counterBox.style.fontFamily = fontStack;
+                    counterBox.style.fontSize = playerFontSize + 'px';
+                    counterBox.setAttribute('data-player', id);
+                    counterBox.setAttribute('data-font-source', overrideFont ? 'player' : 'combined');
+                    
+                    // Apply per-player border/stroke
+                    const useBorder = (playerSettings.borderEnabled !== null && playerSettings.borderEnabled !== undefined) 
+                        ? playerSettings.borderEnabled 
+                        : (settings.borderEnabled !== false);
+                    const borderColor = playerSettings.borderColor || settings.strokeColor || settings.borderColor || '#000000';
+                    const borderSize = playerSettings.borderSize || settings.strokeWidth || settings.borderSize || 2;
+                    
+                    if (useBorder) {
+                        const textShadow = `
+                            -${borderSize}px -${borderSize}px 0 ${borderColor},  
+                            ${borderSize}px -${borderSize}px 0 ${borderColor},
+                            -${borderSize}px ${borderSize}px 0 ${borderColor},
+                            ${borderSize}px ${borderSize}px 0 ${borderColor},
+                            -${borderSize * 1.5}px 0 0 ${borderColor},
+                            ${borderSize * 1.5}px 0 0 ${borderColor},
+                            0 -${borderSize * 1.5}px 0 ${borderColor},
+                            0 ${borderSize * 1.5}px 0 ${borderColor}
+                        `;
+                        counterBox.style.textShadow = textShadow;
+                    } else {
+                        counterBox.style.textShadow = 'none';
+                    }
+                }
+                const nameEl = document.getElementById(`${id}-name`);
+                if (nameEl) {
+                    nameEl.style.fontFamily = fontStack;
+                    nameEl.setAttribute('data-font-source', overrideFont ? 'player' : 'combined');
+                }
+
+                // color update using per-player outcome colors
+                const winColor = this.colorForPlayer(wins, settings, playerSettings);
+                this.setColor(numEl, winColor);
+                this.setColor(maxEl, playerFontColor);
+                const siblingSlash = numEl.parentElement?.querySelector('.slash');
+                if (siblingSlash) this.setColor(siblingSlash, playerFontColor);
+
+                // animation + sound
+                if (wins !== previous) {
+                    const anim = wins > previous ? 'animate-positive' : (wins < previous ? 'animate-negative' : 'animate-bounce');
+                    this.triggerAnimation(numEl, anim);
+                    this.playSound(wins, previous);
+                }
+            }
+
+            /**
+             * Animate counter from old value to new value
+             * Counts up/down one by one for smooth effect
+             */
+            animateCounter(id, fromValue, toValue, maxWins, numEl, maxEl) {
+                // Cancel any existing animation
+                if (this.animatingCounters[id]) {
+                    clearInterval(this.animatingCounters[id]);
+                }
+
+                // If same value, nothing to do
+                if (fromValue === toValue) return;
+
+                const direction = toValue > fromValue ? 1 : -1;
+                const steps = Math.abs(toValue - fromValue);
+                const duration = Math.min(steps * 150, 1000); // 150ms per step, max 1 second
+                const stepDuration = duration / steps;
+
+                let current = fromValue;
+
+                // Trigger animation on start
+                const anim = toValue > fromValue ? 'animate-positive' : 'animate-negative';
+                this.triggerAnimation(numEl, anim);
+
+                this.animatingCounters[id] = setInterval(() => {
+                    current += direction;
+                    numEl.textContent = String(current);
+                    maxEl.textContent = String(maxWins);
+
+                    if (current === toValue) {
+                        clearInterval(this.animatingCounters[id]);
+                        this.animatingCounters[id] = null;
+                        // Play sound at the end
+                        this.playSound(current, fromValue);
+                    }
+                }, stepDuration);
+            }
+
+            colorForPlayer(value, settings, playerSettings = {}) {
+                // Use per-player outcome colors if set, otherwise fallback to global
+                if (value > 0) return playerSettings.positiveColor || settings.positiveColor || 'rgb(0,255,0)';
+                if (value < 0) return playerSettings.negativeColor || settings.negativeColor || 'rgb(255,0,0)';
+                return playerSettings.neutralColor || settings.neutralColor || 'rgb(255,255,255)';
+            }
+
+            handleManualKey(e, id) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.commitManual(id);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    // revert to current
+                    const numEl = document.getElementById(`${id}-winNumber`);
+                    if (numEl) numEl.textContent = String(id === 'p1' ? this.current.players.p1.wins : this.current.players.p2.wins);
+                    numEl?.blur();
+                }
+            }
+
+            commitManual(id) {
+                const numEl = document.getElementById(`${id}-winNumber`);
+                if (!numEl) return;
+                const raw = (numEl.textContent || '').trim();
+                const val = Number(raw);
+                if (!Number.isFinite(val) || raw === '') {
+                    // revert on invalid
+                    numEl.textContent = String(id === 'p1' ? this.current.players.p1.wins : this.current.players.p2.wins);
+                    return;
+                }
+                // clamp suggested range
+                const clamped = Math.max(-999, Math.min(9999, Math.trunc(val)));
+                if (id === 'p1') this.current.players.p1.wins = clamped; else this.current.players.p2.wins = clamped;
+                this.pushUpdate();
+            }
+
+            async pushUpdate() {
+                try {
+                    const payload = {
+                        mode: this.current.mode,
+                        maxWins: this.current.maxWins,
+                        players: {
+                            p1: { wins: this.current.players.p1.wins },
+                            p2: { wins: this.current.players.p2.wins }
+                        }
+                    };
+                    await fetch('/api/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                } catch {}
+            }
+
+            applyFontSettings(settings, playerSettings = {}) {
+                if (!settings) return;
+                
+                // Apply global font size and border to all counters
+                const allCounters = document.querySelectorAll('.win-counter');
+                allCounters.forEach(counter => {
+                    // Only apply combined font size if this counter does NOT have a per-player override
+                    const playerId = counter.getAttribute('data-player');
+                    let hasOverride = false;
+                    if (playerId && playerSettings[playerId]) {
+                        hasOverride = !!playerSettings[playerId].fontSize;
+                    }
+                    if (settings.fontSize && !hasOverride) {
+                        counter.style.fontSize = settings.fontSize + 'px';
+                    }
+                    
+                    const strokeColor = settings.strokeColor || settings.borderColor;
+                    const strokeWidth = settings.strokeWidth || settings.borderSize;
+                    
+                    if (settings.borderEnabled !== false && strokeColor && strokeWidth) {
+                        const borderSize = strokeWidth;
+                        const borderColor = strokeColor;
+                        const textShadow = `
+                            -${borderSize}px -${borderSize}px 0 ${borderColor},  
+                            ${borderSize}px -${borderSize}px 0 ${borderColor},
+                            -${borderSize}px ${borderSize}px 0 ${borderColor},
+                            ${borderSize}px ${borderSize}px 0 ${borderColor},
+                            -${borderSize * 1.5}px 0 0 ${borderColor},
+                            ${borderSize * 1.5}px 0 0 ${borderColor},
+                            0 -${borderSize * 1.5}px 0 ${borderColor},
+                            0 ${borderSize * 1.5}px 0 ${borderColor}
+                        `;
+                        counter.style.textShadow = textShadow;
+                    }
+                });
+                
+                console.log('🎨 Font settings applied:', settings, playerSettings);
+            }
+
+            async connectToServer() {
+                console.log('🌐 Connecting to server...');
+                
+                // Get initial data
+                try {
+                    const response = await fetch('/api/data');
+                    const data = await response.json();
+                    console.log('📦 Initial server data:', data);
+                    this.updateDisplay(data);
+                } catch (error) {
+                    console.log('❌ Server not available');
+                }
+                
+                // Start real-time polling
+                setInterval(async () => {
+                    try {
+                        const response = await fetch('/api/data');
+                        const data = await response.json();
+                        this.updateDisplay(data);
+                    } catch (error) {
+                        // Silent fail
+                    }
+                }, 200); // ทุก 200ms
+            }
+
+            playSound(newValue, oldValue) {
+                if (!this.soundEnabled) return;
+                
+                try {
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    if (newValue > oldValue) {
+                        this.createBeep(audioCtx, 880, 0.15);
+                    } else if (newValue < oldValue) {
+                        this.createBeep(audioCtx, 220, 0.2);
+                    }
+                } catch (error) {
+                    console.log('Sound not available');
+                }
+            }
+
+            createBeep(audioCtx, frequency, duration) {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + duration);
+            }
+        }
+
+        // Initialize overlay
+        document.addEventListener('DOMContentLoaded', () => {
+            window.overlay = new WinCounterOverlay();
+        });
+    </script>
 </body>
 </html>
