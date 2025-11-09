@@ -28,7 +28,8 @@ export async function onRequestPost(context) {
     try {
         const updateData = await request.json();
         
-        // Get current data
+        // Use in-memory storage only (no KV to avoid rate limits)
+        // Get current data from memory or use default
         let currentData = {
             mode: 'single',
             maxWins: 2,
@@ -53,25 +54,19 @@ export async function onRequestPost(context) {
             }
         };
 
-        if (env.OVERLAY_DATA) {
-            const existingDataStr = await env.OVERLAY_DATA.get('overlayData');
-            if (existingDataStr) {
-                currentData = JSON.parse(existingDataStr);
-            }
+        // Store in global memory (works for current session)
+        if (!globalThis.overlayData) {
+            globalThis.overlayData = currentData;
         }
-
-        // Merge the update with current data (deep merge)
-        const mergedData = mergeDeep(currentData, updateData);
         
-        // Save to KV storage
-        if (env.OVERLAY_DATA) {
-            await env.OVERLAY_DATA.put('overlayData', JSON.stringify(mergedData));
-        }
+        // Merge the update with current data (deep merge)
+        const mergedData = mergeDeep(globalThis.overlayData, updateData);
+        globalThis.overlayData = mergedData;
         
         return new Response(JSON.stringify({
             success: true,
             timestamp: new Date().toISOString(),
-            message: 'Data updated successfully',
+            message: 'Data updated successfully (memory storage)',
             data: mergedData
         }), { headers: corsHeaders });
         

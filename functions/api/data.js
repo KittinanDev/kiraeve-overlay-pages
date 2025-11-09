@@ -26,48 +26,41 @@ export async function onRequestGet(context) {
     };
 
     try {
-        // Try to get data from KV storage
-        if (env.OVERLAY_DATA) {
-            const dataStr = await env.OVERLAY_DATA.get('overlayData');
-            if (dataStr) {
-                const data = JSON.parse(dataStr);
-                return new Response(JSON.stringify({
-                    success: true,
-                    timestamp: new Date().toISOString(),
-                    data: data
-                }), { headers: corsHeaders });
-            }
-        }
+        // Use in-memory storage only (no KV to avoid rate limits)
+        let data = globalThis.overlayData;
         
-        // Return default data if not found (matches localhost default exactly)
-        const defaultData = {
-            mode: 'single',
-            maxWins: 2,
-            players: {
-                p1: { name: 'P1', showName: true, wins: 0 },
-                p2: { name: 'P2', showName: true, wins: 0 }
-            },
-            settings: {
-                font: 'Komika Axis',
-                fontSize: 80,
-                fontColor: '#ffffff',
-                borderEnabled: true,
-                borderColor: '#000000',
-                borderSize: 2,
-                positiveColor: 'rgb(0, 255, 0)',
-                negativeColor: 'rgb(255, 0, 0)',
-                neutralColor: 'rgb(255, 255, 255)'
-            },
-            playerSettings: {
-                p1: { font: null, fontSize: null, fontColor: null, borderEnabled: null, borderColor: null, borderSize: null, positiveColor: null, negativeColor: null, neutralColor: null },
-                p2: { font: null, fontSize: null, fontColor: null, borderEnabled: null, borderColor: null, borderSize: null, positiveColor: null, negativeColor: null, neutralColor: null }
-            }
-        };
+        if (!data) {
+            // Return default data if not found (matches localhost default exactly)
+            data = {
+                mode: 'single',
+                maxWins: 2,
+                players: {
+                    p1: { name: 'P1', showName: true, wins: 0 },
+                    p2: { name: 'P2', showName: true, wins: 0 }
+                },
+                settings: {
+                    font: 'Komika Axis',
+                    fontSize: 80,
+                    fontColor: '#ffffff',
+                    borderEnabled: true,
+                    borderColor: '#000000',
+                    borderSize: 2,
+                    positiveColor: 'rgb(0, 255, 0)',
+                    negativeColor: 'rgb(255, 0, 0)',
+                    neutralColor: 'rgb(255, 255, 255)'
+                },
+                playerSettings: {
+                    p1: { font: null, fontSize: null, fontColor: null, borderEnabled: null, borderColor: null, borderSize: null, positiveColor: null, negativeColor: null, neutralColor: null },
+                    p2: { font: null, fontSize: null, fontColor: null, borderEnabled: null, borderColor: null, borderSize: null, positiveColor: null, negativeColor: null, neutralColor: null }
+                }
+            };
+            globalThis.overlayData = data;
+        }
         
         return new Response(JSON.stringify({
             success: true,
             timestamp: new Date().toISOString(),
-            data: defaultData
+            data: data
         }), { headers: corsHeaders });
         
     } catch (error) {
