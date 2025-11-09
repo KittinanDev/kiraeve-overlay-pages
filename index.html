@@ -152,6 +152,8 @@
             }
 
             updateDisplay(data) {
+                console.log('🔄 updateDisplay called with:', data);
+                
                 // normalize
                 const mode = data.mode || 'single';
                 const maxWins = data.maxWins ?? 2;
@@ -159,10 +161,13 @@
                 const p2wins = data.players?.p2?.wins ?? 0;
                 const settings = data.settings || {};
 
+                console.log('🎯 Parsed values:', { mode, maxWins, p1wins, p2wins });
+
                 const needRerender = (mode !== this.current.mode) || (maxWins !== this.current.maxWins);
                 this.current = { mode, maxWins, players: { p1: { wins: p1wins }, p2: { wins: p2wins } }, settings };
 
                 if (needRerender || !this.root.firstChild) {
+                    console.log('🏗️ Re-rendering overlay');
                     this.render(mode);
                 }
 
@@ -261,18 +266,29 @@
             }
 
             updatePlayer(id, wins, maxWins, settings, playerSettings = {}) {
+                console.log(`🎮 updatePlayer(${id}, wins=${wins}, maxWins=${maxWins})`);
+                
                 const numEl = document.getElementById(`${id}-winNumber`);
                 const maxEl = document.getElementById(`${id}-maxNumber`);
-                if (!numEl || !maxEl) return;
+                
+                console.log(`📍 Elements found: numEl=${!!numEl}, maxEl=${!!maxEl}`);
+                
+                if (!numEl || !maxEl) {
+                    console.log(`❌ Missing elements for ${id}`);
+                    return;
+                }
 
                 const previous = parseInt(numEl.textContent || '0', 10) || 0;
+                console.log(`🔄 ${id}: ${previous} → ${wins}`);
                 
                 // Animate counter if value changed
                 if (this.currentValues[id] !== wins) {
+                    console.log(`✨ Animating ${id} counter`);
                     this.animateCounter(id, this.currentValues[id], wins, maxWins, numEl, maxEl);
                     this.currentValues[id] = wins;
                 } else {
                     // Just update max wins if it changed
+                    console.log(`📊 Updating max wins for ${id}: ${maxWins}`);
                     maxEl.textContent = String(maxWins);
                 }
 
