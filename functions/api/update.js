@@ -28,40 +28,57 @@ export async function onRequestPost(context) {
     try {
         const updateData = await request.json();
         
-        // Use in-memory storage only (no KV to avoid rate limits)
-        // Get current data from memory or use default
-        let currentData = {
-            mode: 'single',
-            maxWins: 2,
-            players: {
-                p1: { name: 'P1', showName: true, wins: 0 },
-                p2: { name: 'P2', showName: true, wins: 0 }
-            },
-            settings: {
-                font: 'Komika Axis',
-                fontSize: 80,
-                fontColor: '#ffffff',
-                borderEnabled: true,
-                borderColor: '#000000',
-                borderSize: 2,
-                positiveColor: 'rgb(0, 255, 0)',
-                negativeColor: 'rgb(255, 0, 0)',
-                neutralColor: 'rgb(255, 255, 255)'
-            },
-            playerSettings: {
-                p1: { font: null, fontSize: null, fontColor: null, borderEnabled: null, borderColor: null, borderSize: null, positiveColor: null, negativeColor: null, neutralColor: null },
-                p2: { font: null, fontSize: null, fontColor: null, borderEnabled: null, borderColor: null, borderSize: null, positiveColor: null, negativeColor: null, neutralColor: null }
+        // Try to get existing data from KV (with error handling)
+        let currentData = null;
+        try {
+            const existingDataStr = await env.OVERLAY_DATA?.get('temp_session');
+            if (existingDataStr) {
+                currentData = JSON.parse(existingDataStr);
+                console.log('📦 Loaded existing data from KV cache');
             }
-        };
-
-        // Store in global memory (works for current session)
-        if (!globalThis.overlayData) {
-            globalThis.overlayData = currentData;
+        } catch (kvError) {
+            console.log('⚠️ KV get failed, using defaults');
+        }
+        
+        // Use default if no existing data
+        if (!currentData) {
+            currentData = {
+                mode: 'single',
+                maxWins: 2,
+                players: {
+                    p1: { name: 'P1', showName: true, wins: 0 },
+                    p2: { name: 'P2', showName: true, wins: 0 }
+                },
+                settings: {
+                    font: 'Komika Axis',
+                    fontSize: 80,
+                    fontColor: '#ffffff',
+                    borderEnabled: true,
+                    borderColor: '#000000',
+                    borderSize: 2,
+                    positiveColor: 'rgb(0, 255, 0)',
+                    negativeColor: 'rgb(255, 0, 0)',
+                    neutralColor: 'rgb(255, 255, 255)'
+                },
+                playerSettings: {
+                    p1: { font: null, fontSize: null, fontColor: null, borderEnabled: null, borderColor: null, borderSize: null, positiveColor: null, negativeColor: null, neutralColor: null },
+                    p2: { font: null, fontSize: null, fontColor: null, borderEnabled: null, borderColor: null, borderSize: null, positiveColor: null, negativeColor: null, neutralColor: null }
+                }
+            };
         }
         
         // Merge the update with current data (deep merge)
-        const mergedData = mergeDeep(globalThis.overlayData, updateData);
-        globalThis.overlayData = mergedData;
+        const mergedData = mergeDeep(currentData, updateData);
+        
+        // Try to save back to KV with short TTL (don't fail if KV fails)
+        try {
+            await env.OVERLAY_DATA?.put('temp_session', JSON.stringify(mergedData), {
+                expirationTtl: 180 // 3 minutes TTL
+            });
+            console.log('✅ Data saved to KV cache');
+        } catch (kvError) {
+            console.log('⚠️ KV save failed (continuing anyway):', kvError.message);
+        }
         
         return new Response(JSON.stringify({
             success: true,

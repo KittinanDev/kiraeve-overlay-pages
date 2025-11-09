@@ -26,8 +26,19 @@ export async function onRequestGet(context) {
     };
 
     try {
-        // Use in-memory storage only (no KV to avoid rate limits)
-        let data = globalThis.overlayData;
+        // Try to use temporary cache using KV with short TTL to avoid persistent storage issues
+        let data = null;
+        
+        try {
+            // Try to get from KV with very short TTL (5 minutes max)
+            const kvData = await env.OVERLAY_DATA?.get('temp_session');
+            if (kvData) {
+                data = JSON.parse(kvData);
+                console.log('📦 Loaded from KV cache:', data.players);
+            }
+        } catch (kvError) {
+            console.log('⚠️ KV not available, using defaults');
+        }
         
         if (!data) {
             // Return default data if not found (matches localhost default exactly)
@@ -54,7 +65,6 @@ export async function onRequestGet(context) {
                     p2: { font: null, fontSize: null, fontColor: null, borderEnabled: null, borderColor: null, borderSize: null, positiveColor: null, negativeColor: null, neutralColor: null }
                 }
             };
-            globalThis.overlayData = data;
         }
         
         return new Response(JSON.stringify({
