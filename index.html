@@ -128,7 +128,7 @@
                 
                 console.log('🎮 Starting Kiraeve Win Counter Overlay...');
                 
-                this.connectToServer();
+                // connectToServer จะถูกเรียกจาก DOMContentLoaded
             }
 
             setColor(el, colorCode) {
@@ -477,18 +477,25 @@
                 // Get initial data
                 try {
                     const response = await fetch('/api/data');
-                    const data = await response.json();
-                    console.log('📦 Initial server data:', data);
+                    const result = await response.json();
+                    console.log('📦 Initial server response:', result);
+                    
+                    // Extract data from API response structure
+                    const data = result.success ? result.data : result;
+                    console.log('📦 Extracted data:', data);
                     this.updateDisplay(data);
                 } catch (error) {
-                    console.log('❌ Server not available');
+                    console.log('❌ Server not available:', error);
                 }
                 
                 // Start real-time polling
                 setInterval(async () => {
                     try {
                         const response = await fetch('/api/data');
-                        const data = await response.json();
+                        const result = await response.json();
+                        
+                        // Extract data from API response structure
+                        const data = result.success ? result.data : result;
                         this.updateDisplay(data);
                     } catch (error) {
                         // Silent fail
@@ -533,6 +540,7 @@
         // Initialize overlay
         document.addEventListener('DOMContentLoaded', () => {
             window.overlay = new WinCounterOverlay();
+            window.overlay.connectToServer(); // เรียก connectToServer เพื่อเริ่ม polling
         });
     </script>
 </body>
